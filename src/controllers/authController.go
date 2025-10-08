@@ -9,7 +9,7 @@ import (
 
 	"github.com/Massil-br/GoGameServer1/src/config"
 	"github.com/Massil-br/GoGameServer1/src/models"
-	auth "github.com/Massil-br/GoGameServer1/src/models/Auth"
+	authmodels "github.com/Massil-br/GoGameServer1/src/models/AuthModels"
 	"github.com/Massil-br/GoGameServer1/src/utils"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
@@ -17,7 +17,7 @@ import (
 )
 
 func CreateUser(c echo.Context) error {
-	var req auth.CreateUserRequest
+	var req authmodels.CreateUserRequest
 	err := c.Bind(&req)
 	if err != nil {
 		log.Println("[WARN] could not  bind CreateUserRequest: ", err, " Sender : ", c.RealIP())
@@ -62,7 +62,7 @@ func CreateUser(c echo.Context) error {
 		Username: req.Username,
 		Email:    req.Email,
 		Password: hashedPassword,
-		Role:     "admin",
+		Role:     "user",
 	}
 
 	err = config.DB.Create(&user).Error
@@ -80,49 +80,47 @@ func CreateUser(c echo.Context) error {
 
 }
 
-
-func Login(c echo.Context)error{
-	var req auth.LoginRequest
+func Login(c echo.Context) error {
+	var req authmodels.LoginRequest
 	err := c.Bind(&req)
-	if err != nil{
-		log.Println("[WARN] could not  bind LoginRequest,  ",err, " Sender : ", c.RealIP())
-		return c.JSON(http.StatusBadRequest, echo.Map{"error":"invalid input"})
+	if err != nil {
+		log.Println("[WARN] could not  bind LoginRequest,  ", err, " Sender : ", c.RealIP())
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid input"})
 	}
 
 	var user models.User
 
 	err = config.DB.Where("email = ?", req.Email).First(&user).Error
-	if err != nil{
+	if err != nil {
 		log.Println("[WARN] Invalid creadentials, Sender : ", c.RealIP())
-		return c.JSON(http.StatusUnauthorized, echo.Map{"error":"Invalid credentials"})
+		return c.JSON(http.StatusUnauthorized, echo.Map{"error": "Invalid credentials"})
 	}
 
-	if !utils.CheckPassword(req.Password, user.Password){
+	if !utils.CheckPassword(req.Password, user.Password) {
 		log.Println("[WARN] Invalid crendentials, Sender : ", c.RealIP())
-		return c.JSON(http.StatusUnauthorized, echo.Map{"error":"Invalid credentials"})
+		return c.JSON(http.StatusUnauthorized, echo.Map{"error": "Invalid credentials"})
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id": user.ID,
+		"id":       user.ID,
 		"username": user.Username,
-		"email" : user.Email,
-		"role": user.Role,
-		"exp": time.Now().Add(24*time.Hour).Unix(),
+		"email":    user.Email,
+		"role":     user.Role,
+		"exp":      time.Now().Add(24 * time.Hour).Unix(),
 	})
 
 	secret := os.Getenv("JWT_SECRET")
 	tokenString, err := token.SignedString([]byte(secret))
-	if err != nil{
+	if err != nil {
 		log.Println("[ERROR] failed to generate token  : ", err)
-		return c.JSON(http.StatusInternalServerError, echo.Map{"error":"Failed to generate token"})
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "Failed to generate token"})
 	}
 
 	log.Println("[OK] Login successfull , Sender : ", c.RealIP())
 
 	return c.JSON(http.StatusOK, echo.Map{
-		"message":"Login successfull",
-		"token": tokenString,
+		"message": "Login successfull",
+		"token":   tokenString,
 	})
-
 
 }

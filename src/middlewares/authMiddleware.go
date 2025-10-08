@@ -9,6 +9,7 @@ import (
 	"github.com/Massil-br/GoGameServer1/src/config"
 	"github.com/Massil-br/GoGameServer1/src/models"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -44,11 +45,15 @@ func AuthMiddleware(minRole string) echo.MiddlewareFunc {
 				return echo.NewHTTPError(http.StatusUnauthorized, "Invalid token claims")
 			}
 
-			userIDFloat, ok := claims["user_id"].(float64)
+			idStr, ok := claims["id"].(string)
 			if !ok {
-				return echo.NewHTTPError(http.StatusUnauthorized, "Invalid user_id in token")
+				return echo.NewHTTPError(http.StatusUnauthorized, "Invalid id in token")
 			}
-			userID := uint(userIDFloat)
+			userID, err := uuid.Parse(idStr)
+
+			if err != nil {
+				return echo.NewHTTPError(http.StatusInternalServerError, "error binding user ID from token")
+			}
 
 			var user models.User
 			if err := config.DB.First(&user, userID).Error; err != nil {
